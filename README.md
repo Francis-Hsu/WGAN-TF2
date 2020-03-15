@@ -24,6 +24,9 @@ The Wasserstein GAN implemented is the WGAN-LP variant \[[PFL17](https://arxiv.o
   ```
 
 ## Examples
+| GAN | WGAN |
+|:-------------------------:|:-------------------------:|
+|![GAN_CIFAR10](examples/gan_cifar_example.png) | ![WGAN_CIFAR10](examples/wgan_cifar_example.png)|
 
 ## Acknowledgment
 - [Deep Convolutional Generative Adversarial Network](https://www.tensorflow.org/tutorials/generative/dcgan).
