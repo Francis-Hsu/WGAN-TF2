@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
@@ -23,11 +24,13 @@ class GAN:
         else:
             raise ValueError('Dataset not supported.')
 
-        # set input basics
+        # get basic inputs
         self.batch_size = param.get("batch_size", 128)
         self.noise_dim = param.get("noise_dim", 128)
         self.total_epoch = param.get("total_epoch", 100)
+        self.critic_step = param.get("critic_step", 1)
         self.visualize = param.get("visualize", True)
+        self.out_path = param.get("output", os.getcwd())
 
         # storage for the objectives
         self.batch_num = int(self.data_shape[0] / self.batch_size) + (self.data_shape[0] % self.batch_size != 0)
@@ -111,8 +114,7 @@ class GAN:
     @tf.function
     def train_discriminator(self, x_batch):
         with tf.GradientTape() as D_tape:
-            b_size = x_batch.shape[0]
-            x_gen = self.G(tf.random.uniform([b_size, self.noise_dim]), training=True)
+            x_gen = self.G(tf.random.uniform([x_batch.shape[0], self.noise_dim]), training=True)
             y_real = self.D(x_batch, training=True)
             y_gen = self.D(x_gen, training=True)
 
@@ -148,9 +150,10 @@ class GAN:
         ts_start = tf.timestamp()
         for t in range(self.total_epoch):
             for b in self.x_train:
-                self.d_obj[t] -= self.train_discriminator(b)
+                for k in range(self.critic_step):
+                    self.d_obj[t] -= self.train_discriminator(b)
                 self.g_obj[t] -= self.train_generator(b.shape[0])
-            self.d_obj[t] /= self.batch_num
+            self.d_obj[t] /= self.critic_step * self.batch_num
             self.g_obj[t] /= self.batch_num
 
             # Print time
@@ -168,7 +171,7 @@ class GAN:
                     else:
                         plt.imshow((vis_gen[i, :, :] + 1) / 2)
                     plt.axis('off')
-                plt.savefig("./{}_GAN_Epoch_{:03d}.png".format(self.dataset, t + 1))
+                plt.savefig(os.path.join(self.out_path, "GAN_{}_Epoch_{:03d}.png".format(self.dataset, t + 1)))
                 plt.clf()
                 plt.close(fig)
         print("Done! {:0.2f} seconds have passed.".format(tf.timestamp() - ts_start))

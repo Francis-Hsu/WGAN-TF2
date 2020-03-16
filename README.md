@@ -23,7 +23,7 @@ The Wasserstein GAN implemented is the WGAN-LP variant \[[PFL17](https://arxiv.o
   python main.py --help
   ```
 
-## Examples
+## Demo
 | GAN | WGAN |
 |:-------------------------:|:-------------------------:|
 |![GAN_CIFAR10](examples/gan_cifar_example.png) | ![WGAN_CIFAR10](examples/wgan_cifar_example.png)|
