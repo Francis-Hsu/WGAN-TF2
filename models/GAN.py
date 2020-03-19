@@ -1,6 +1,7 @@
 import os
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
 
@@ -34,8 +35,8 @@ class GAN:
 
         # storage for the objectives
         self.batch_num = int(self.data_shape[0] / self.batch_size) + (self.data_shape[0] % self.batch_size != 0)
-        self.d_obj = np.zeros(self.total_epoch)
-        self.g_obj = np.zeros(self.total_epoch)
+        self.d_obj = np.zeros([self.batch_num, self.total_epoch, self.critic_step])
+        self.g_obj = np.zeros([self.batch_num, self.total_epoch])
 
         # normalize dataset
         self.x_train = self.x_train.reshape(self.data_shape).astype('float32')
@@ -44,16 +45,16 @@ class GAN:
             tf.data.Dataset.from_tensor_slices(self.x_train).shuffle(self.data_shape[0]).batch(self.batch_size)
 
         # setup optimizers
-        self.G_optimizer = tf.keras.optimizers.Adam(learning_rate=param.get("learning_rate", 1e-4),
-                                                    beta_1=param.get("beta_1", 0.5),
-                                                    beta_2=param.get("beta_2", 0.999),
-                                                    epsilon=param.get("epsilon", 1e-7),
-                                                    amsgrad=param.get("amsgrad", False))
-        self.D_optimizer = tf.keras.optimizers.Adam(learning_rate=param.get("learning_rate", 1e-4),
-                                                    beta_1=param.get("beta_1", 0.5),
-                                                    beta_2=param.get("beta_2", 0.999),
-                                                    epsilon=param.get("epsilon", 1e-7),
-                                                    amsgrad=param.get("amsgrad", False))
+        self.G_optimizer = tf.keras.optimizers.Adam(learning_rate=param.get("learning_rate", 5e-5)[0],
+                                                    beta_1=param.get("beta_1", 0.5)[0],
+                                                    beta_2=param.get("beta_2", 0.999)[0],
+                                                    epsilon=param.get("epsilon", 1e-7)[0],
+                                                    amsgrad=param.get("amsgrad", False)[0])
+        self.D_optimizer = tf.keras.optimizers.Adam(learning_rate=param.get("learning_rate", 1e-4)[1],
+                                                    beta_1=param.get("beta_1", 0.5)[1],
+                                                    beta_2=param.get("beta_2", 0.999)[1],
+                                                    epsilon=param.get("epsilon", 1e-7)[1],
+                                                    amsgrad=param.get("amsgrad", False)[1])
 
         # setup models
         self.G = self.set_generator()
@@ -61,9 +62,7 @@ class GAN:
 
     def set_generator(self):
         g = tf.keras.Sequential()
-        g.add(layers.Dense(self.init_dim * self.init_dim * 256, use_bias=False,
-                           input_shape=(self.noise_dim,),
-                           kernel_initializer="glorot_uniform"))
+        g.add(layers.Dense(self.init_dim * self.init_dim * 256, use_bias=False, input_shape=(self.noise_dim,)))
         g.add(layers.BatchNormalization())
         g.add(layers.LeakyReLU())
         g.add(layers.Reshape((self.init_dim, self.init_dim, 256)))
@@ -80,8 +79,7 @@ class GAN:
         g.add(layers.BatchNormalization())
         g.add(layers.LeakyReLU())
 
-        g.add(layers.Conv2DTranspose(self.data_shape[3], 5, padding='same', use_bias=False,
-                                     activation='tanh'))
+        g.add(layers.Conv2DTranspose(self.data_shape[3], 5, padding='same', use_bias=False, activation='tanh'))
 
         return g
 
@@ -89,7 +87,7 @@ class GAN:
         d = tf.keras.Sequential()
         d.add(layers.Conv2D(32, kernel_size=5, strides=2, padding='same',
                             input_shape=self.data_shape[1:],
-                            kernel_initializer=tf.keras.initializers.glorot_uniform()))
+                            kernel_initializer="glorot_uniform"))
         d.add(layers.LeakyReLU())
 
         d.add(layers.Conv2D(64, kernel_size=5, strides=2, padding='same'))
@@ -121,12 +119,12 @@ class GAN:
             # compute the objective
             loss_real = tf.math.log(tf.clip_by_value(y_real, 1e-10, 1.0))
             loss_gen = tf.math.log(tf.clip_by_value(tf.math.add(1.0, tf.math.negative(y_gen)), 1e-10, 1.0))
-            d_gain = -tf.math.reduce_mean(loss_real + loss_gen)
+            d_obj = -tf.math.reduce_mean(loss_real) - tf.math.reduce_mean(loss_gen)
+        # update the discriminator
+        d_grad = D_tape.gradient(d_obj, self.D.trainable_variables)
+        self.D_optimizer.apply_gradients(zip(d_grad, self.D.trainable_variables))
 
-            # update the discriminator
-            d_grad = D_tape.gradient(d_gain, self.D.trainable_variables)
-            self.D_optimizer.apply_gradients(zip(d_grad, self.D.trainable_variables))
-        return d_gain
+        return d_obj
 
     @tf.function
     def train_generator(self, x_batch_size):
@@ -134,13 +132,16 @@ class GAN:
             x_gen = self.G(tf.random.uniform([x_batch_size, self.noise_dim]), training=True)
             y_gen = self.D(x_gen, training=True)
 
-            # update the generator
-            g_gain = -tf.math.reduce_mean(tf.math.log(tf.clip_by_value(y_gen, 1e-10, 1.0)))
-            g_grad = G_tape.gradient(g_gain, self.G.trainable_variables)
-            self.G_optimizer.apply_gradients(zip(g_grad, self.G.trainable_variables))
-        return g_gain
+            # compute the objective
+            g_obj = -tf.math.reduce_mean(tf.math.log(tf.clip_by_value(y_gen, 1e-10, 1.0)))
+        # update the generator
+        g_grad = G_tape.gradient(g_obj, self.G.trainable_variables)
+        self.G_optimizer.apply_gradients(zip(g_grad, self.G.trainable_variables))
+
+        return g_obj
 
     def train(self):
+        vis_seed = None
         if self.visualize:
             # Seed for checking training progress
             vis_seed = tf.random.uniform([16, self.noise_dim])
@@ -149,12 +150,12 @@ class GAN:
         print("Training...")
         ts_start = tf.timestamp()
         for t in range(self.total_epoch):
+            batch_id = 0
             for b in self.x_train:
                 for k in range(self.critic_step):
-                    self.d_obj[t] -= self.train_discriminator(b)
-                self.g_obj[t] -= self.train_generator(b.shape[0])
-            self.d_obj[t] /= self.critic_step * self.batch_num
-            self.g_obj[t] /= self.batch_num
+                    self.d_obj[batch_id, t, k] = self.train_discriminator(b)
+                self.g_obj[batch_id, t] = self.train_generator(b.shape[0])
+                batch_id += 1
 
             # Print time
             print("Time used for epoch {} are {:0.2f} seconds.".format(t + 1, tf.timestamp() - ts_start))

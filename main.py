@@ -1,6 +1,8 @@
 import argparse
 import os
+
 import matplotlib.pyplot as plt
+import numpy as np
 import tensorflow as tf
 
 from models.GAN import GAN
@@ -20,17 +22,34 @@ def main():
     parser.add_argument("--visualize", default=True, type=bool,
                         help="Logical indicating whether to visualize the training process and the resulting models.")
     parser.add_argument("--grad_penalty", default=10.0, type=float,
-                        help="Penalty factor controlling the strength of the gradient regularization in WGAN-LP.")
+                        help="Penalty controlling the strength of the gradient regularization in WGAN-LP.")
     parser.add_argument("--perturb_factor", default=0.5, type=float,
-                        help="Perturbation factor for generating samples to compute the gradient penalty in WGAN-LP.")
-    parser.add_argument("--learning_rate", default=1e-4, type=float, help="The learning rate of the ADAM optimizer.")
-    parser.add_argument("--beta_1", default=0.5, type=float,
-                        help="The exponential decay rate for the 1st moment estimates in ADAM.")
-    parser.add_argument("--beta_2", default=0.999, type=float,
-                        help="The exponential decay rate for the 2nd moment estimates in ADAM.")
-    parser.add_argument("--epsilon", default=1e-7, type=float, help="A small constant for numerical stability of ADAM.")
-    parser.add_argument("--amsgrad", default=False, type=bool,
-                        help="Logical indicating whether to use the AMSGrad variant of ADAM.")
+                        help="Factor controlling the standard deviation of perturbation "
+                             "for generating samples to compute the gradient penalty in WGAN-LP.")
+
+    # setup the discriminator optimizer
+    parser.add_argument("--learning_rate_d", default=1e-4, type=float,
+                        help="The learning rates of ADAM (discriminator).")
+    parser.add_argument("--beta_1_d", default=0.2, type=float,
+                        help="The exponential decay rates for the 1st moment estimates in ADAM (discriminator).")
+    parser.add_argument("--beta_2_d", default=0.999, type=float,
+                        help="The exponential decay rates for the 2nd moment estimates in ADAM (discriminator).")
+    parser.add_argument("--epsilon_d", default=1e-7, type=float,
+                        help="Small constants for numerical stability of ADAM (discriminator).")
+    parser.add_argument("--amsgrad_d", default=False, type=bool,
+                        help="Logical indicating whether to use the AMSGrad variant of ADAM (discriminator).")
+
+    # setup the generator optimizer
+    parser.add_argument("--learning_rate_g", default=1e-4, type=float,
+                        help="The learning rates of ADAM (generator).")
+    parser.add_argument("--beta_1_g", default=0.5, type=float,
+                        help="The exponential decay rates for the 1st moment estimates in ADAM (generator).")
+    parser.add_argument("--beta_2_g", default=0.999, type=float,
+                        help="The exponential decay rates for the 2nd moment estimates in ADAM (generator).")
+    parser.add_argument("--epsilon_g", default=1e-7,
+                        type=float, help="Small constants for numerical stability of ADAM (generator).")
+    parser.add_argument("--amsgrad_g", default=False, type=bool,
+                        help="Logical indicating whether to use the AMSGrad variant of ADAM (generator).")
     model_param = parser.parse_args()
 
     if not os.path.exists(model_param.output) or not os.path.isdir(model_param.output):
@@ -64,13 +83,13 @@ def main():
         plt.savefig(os.path.join(model_param.output,
                                  "{}_{}_Example.png".format(model_param.model, model_param.dataset)))
 
-        # plot the objective functions
+        # plot median value of the objective functions
         plt.figure()
         plt.title("Objective Functions of {} (Dataset: {})".format(model_param.model, model_param.dataset))
         plt.xlabel("Epoch")
-        plt.ylabel("Value")
-        plt.plot(range(1, 1 + model_param.total_epoch), model.d_obj)
-        plt.plot(range(1, 1 + model_param.total_epoch), model.g_obj)
+        plt.ylabel("Median Value")
+        plt.plot(range(1, 1 + model_param.total_epoch), np.median(model.d_obj, axis=[-0, -1]))
+        plt.plot(range(1, 1 + model_param.total_epoch), np.median(model.g_obj, axis=[-0]))
         plt.legend(['Discriminator', 'Generator'])
         plt.savefig(os.path.join(model_param.output,
                                  "{}_{}_Objective.png".format(model_param.model, model_param.dataset)))

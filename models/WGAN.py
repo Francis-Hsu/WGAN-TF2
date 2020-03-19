@@ -1,6 +1,7 @@
 import os
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
 
@@ -14,11 +15,11 @@ class WGAN:
         if self.dataset == "MNIST":
             (self.x_train, _), (_, _) = tf.keras.datasets.mnist.load_data()
             self.init_dim = 7
-            self.strides = (1, 2, 2)
+            self.strides = (2, 2, 1)
             self.data_shape = self.x_train.shape + (1,)
         elif self.dataset == "CIFAR10":
             (self.x_train, _), (_, _) = tf.keras.datasets.cifar10.load_data()
-            self.init_dim = 4
+            self.init_dim = 2
             self.strides = (2, 2, 2)
             self.data_shape = self.x_train.shape
         else:
@@ -34,12 +35,12 @@ class WGAN:
 
         # storage for the objectives
         self.batch_num = int(self.data_shape[0] / self.batch_size) + (self.data_shape[0] % self.batch_size != 0)
-        self.d_obj = np.zeros(self.total_epoch)
-        self.g_obj = np.zeros(self.total_epoch)
+        self.d_obj = np.zeros([self.batch_num, self.total_epoch, self.critic_step])
+        self.g_obj = np.zeros([self.batch_num, self.total_epoch])
 
         # set regularization parameters
         self.grad_penalty = param.get("grad_penalty", 10.0)
-        self.perturb_factor = param.get("perturb_factor", 0.5)
+        self.perturb_factor = param.get("perturb_factor", 1.0)
 
         # normalize dataset
         self.x_train = self.x_train.reshape(self.data_shape).astype('float32')
@@ -48,16 +49,16 @@ class WGAN:
             tf.data.Dataset.from_tensor_slices(self.x_train).shuffle(self.data_shape[0]).batch(self.batch_size)
 
         # setup optimizers
-        self.G_optimizer = tf.keras.optimizers.Adam(learning_rate=param.get("learning_rate", 2e-4),
-                                                    beta_1=param.get("beta_1", 0.5),
-                                                    beta_2=param.get("beta_2", 0.999),
-                                                    epsilon=param.get("epsilon", 1e-7),
-                                                    amsgrad=param.get("amsgrad", False))
-        self.D_optimizer = tf.keras.optimizers.Adam(learning_rate=param.get("learning_rate", 5e-5),
-                                                    beta_1=param.get("beta_1", 0.5),
-                                                    beta_2=param.get("beta_2", 0.999),
-                                                    epsilon=param.get("epsilon", 1e-7),
-                                                    amsgrad=param.get("amsgrad", False))
+        self.D_optimizer = tf.keras.optimizers.Adam(learning_rate=param.get("learning_rate_d", 1e-4),
+                                                    beta_1=param.get("beta_1_d", 0.5),
+                                                    beta_2=param.get("beta_2_d", 0.999),
+                                                    epsilon=param.get("epsilon_d", 1e-7),
+                                                    amsgrad=param.get("amsgrad_d", False))
+        self.G_optimizer = tf.keras.optimizers.Adam(learning_rate=param.get("learning_rate_g", 5e-5),
+                                                    beta_1=param.get("beta_1_g", 0.2),
+                                                    beta_2=param.get("beta_2_g", 0.999),
+                                                    epsilon=param.get("epsilon_g", 1e-7),
+                                                    amsgrad=param.get("amsgrad_g", False))
 
         # setup models
         self.G = self.set_generator()
@@ -65,9 +66,7 @@ class WGAN:
 
     def set_generator(self):
         g = tf.keras.Sequential()
-        g.add(layers.Dense(self.init_dim * self.init_dim * 256, use_bias=False,
-                           input_shape=(self.noise_dim,),
-                           kernel_initializer="glorot_uniform"))
+        g.add(layers.Dense(self.init_dim * self.init_dim * 256, use_bias=False, input_shape=(self.noise_dim,)))
         g.add(layers.BatchNormalization())
         g.add(layers.LeakyReLU())
         g.add(layers.Reshape((self.init_dim, self.init_dim, 256)))
@@ -84,16 +83,14 @@ class WGAN:
         g.add(layers.BatchNormalization())
         g.add(layers.LeakyReLU())
 
-        g.add(layers.Conv2DTranspose(self.data_shape[3], 5, padding='same', use_bias=False,
-                                     activation='tanh'))
+        g.add(layers.Conv2DTranspose(self.data_shape[3], 5, strides=self.strides[2],
+                                     padding='same', use_bias=False, activation='tanh'))
 
         return g
 
     def set_discriminator(self):
         d = tf.keras.Sequential()
-        d.add(layers.Conv2D(32, kernel_size=5, strides=2, padding='same',
-                            input_shape=self.data_shape[1:],
-                            kernel_initializer=tf.keras.initializers.glorot_uniform()))
+        d.add(layers.Conv2D(32, kernel_size=5, strides=2, padding='same', input_shape=self.data_shape[1:]))
         d.add(layers.LeakyReLU())
 
         d.add(layers.Conv2D(64, kernel_size=5, strides=2, padding='same'))
@@ -101,10 +98,6 @@ class WGAN:
         d.add(layers.LeakyReLU())
 
         d.add(layers.Conv2D(128, kernel_size=5, strides=2, padding='same'))
-        d.add(layers.LayerNormalization())
-        d.add(layers.LeakyReLU())
-
-        d.add(layers.Conv2D(256, kernel_size=5, strides=2, padding='same'))
         d.add(layers.LayerNormalization())
         d.add(layers.LeakyReLU())
 
@@ -118,14 +111,13 @@ class WGAN:
         # DRAGAN-like sampling scheme
         x_join = tf.concat([x, x_hat], axis=0)
         _, batch_var = tf.nn.moments(x_join, axes=[0, 1, 2, 3])
-        delta = self.perturb_factor * batch_var * tf.random.uniform([tf.shape(x_join)[0], 1, 1, 1])
-        epsilon = tf.random.uniform([tf.shape(x_join)[0], 1, 1, 1])
-        x_tilde = x_join + (1 - epsilon) * delta
+        delta = tf.random.normal(x_join.shape, stddev=self.perturb_factor * tf.sqrt(batch_var))
+        x_tilde = x_join + delta
 
         # compute gradient penalty
         with tf.GradientTape() as D_tape:
             D_tape.watch(x_tilde)
-            y_tilde = self.D(x_tilde, training=False)
+            y_tilde = self.D(x_tilde)
         d_grad = D_tape.gradient(y_tilde, x_tilde)
         grad_norm = tf.sqrt(tf.reduce_sum(tf.square(d_grad), axis=[1, 2, 3]))
 
@@ -144,10 +136,10 @@ class WGAN:
             # compute the objective
             d_obj = tf.math.reduce_mean(y_gen) - tf.math.reduce_mean(y_real)
             d_obj_pen = d_obj + self.grad_penalty * self.lipschitz_penalty(x_batch, x_gen)
+        # update the discriminator
+        d_grad = D_tape.gradient(d_obj_pen, self.D.trainable_variables)
+        self.D_optimizer.apply_gradients(zip(d_grad, self.D.trainable_variables))
 
-            # update the discriminator
-            d_grad = D_tape.gradient(d_obj_pen, self.D.trainable_variables)
-            self.D_optimizer.apply_gradients(zip(d_grad, self.D.trainable_variables))
         return d_obj
 
     @tf.function
@@ -158,13 +150,14 @@ class WGAN:
 
             # compute the objective
             g_obj = -tf.math.reduce_mean(y_gen)
+        # update the generator
+        g_grad = G_tape.gradient(g_obj, self.G.trainable_variables)
+        self.G_optimizer.apply_gradients(zip(g_grad, self.G.trainable_variables))
 
-            # update the generator
-            g_grad = G_tape.gradient(g_obj, self.G.trainable_variables)
-            self.G_optimizer.apply_gradients(zip(g_grad, self.G.trainable_variables))
         return g_obj
 
     def train(self):
+        vis_seed = None
         if self.visualize:
             # Seed for checking training progress
             vis_seed = tf.random.uniform([16, self.noise_dim])
@@ -173,12 +166,12 @@ class WGAN:
         print("Training...")
         ts_start = tf.timestamp()
         for t in range(self.total_epoch):
+            batch_id = 0
             for b in self.x_train:
                 for k in range(self.critic_step):
-                    self.d_obj[t] -= self.train_discriminator(b)
-                self.g_obj[t] += self.train_generator(b.shape[0])
-            self.d_obj[t] /= self.critic_step * self.batch_num
-            self.g_obj[t] /= self.batch_num
+                    self.d_obj[batch_id, t, k] = self.train_discriminator(b)
+                self.g_obj[batch_id, t] = self.train_generator(b.shape[0])
+                batch_id += 1
 
             # Print time
             print("Time used for epoch {} are {:0.2f} seconds.".format(t + 1, tf.timestamp() - ts_start))
