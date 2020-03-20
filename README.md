@@ -1,11 +1,11 @@
 # WGAN-TF2
 
-Yet another simple implementation of GAN and Wasserstein GAN using TensorFlow 2.0.
+Yet another simple implementation of GAN and Wasserstein GAN using TensorFlow 2.
 
 ## Remarks
-Following advise from GAN's original authors, we trained *G* to maximize ln[*D*(*G*(***z***))].
+Following advice from GAN's original publication, we trained *G* to maximize ln[*D*(*G*(***z***))] to avoid vanishing gradient.
 
-The Wasserstein GAN implemented is the WGAN-LP variant \[[PFL17](https://arxiv.org/abs/1709.08894)\]. We compute the gradient penalty by perturbing the concatenation of real and fake data.
+The Wasserstein GAN implemented is the WGAN-LP variant \[[PFL17](https://arxiv.org/abs/1709.08894)\]. We compute the gradient penalty by perturbing the concatenation of real and fake data by Gaussian noises.
 
 ## Usage
 - To train GAN on MNIST: 
@@ -18,17 +18,27 @@ The Wasserstein GAN implemented is the WGAN-LP variant \[[PFL17](https://arxiv.o
   python main.py --model WGAN --dataset CIFAR10
   ```
 
-- To see help:
+- To see available parameters and explaninations:
   ```bash
   python main.py --help
   ```
 
 ## Demo
+For the MNIST dataset, we picked 16 seeds (respectively for both models) to showcase how the generators evolve. We also randomly generated 100 samples after 100 epochs of training. The (median) objective function values for GAN and WGAN are displayed at the end.
 | GAN | WGAN |
 |:-------------------------:|:-------------------------:|
-|![GAN_CIFAR10](examples/gan_cifar_example.png) | ![WGAN_CIFAR10](examples/wgan_cifar_example.png)|
+| <img width="250" alt="portfolio_view" src="examples/GAN_MNIST.gif"> | <img width="250" alt="portfolio_view" src="examples/WGAN_MNIST.gif"> |
+| ![GAN_MNIST](examples/GAN_MNIST_Example.png) | ![WGAN_MNIST](examples/WGAN_MNIST_Example.png) |
+| <img width="500" alt="portfolio_view" src="examples/GAN_MNIST_Objective.png"> | <img width="500" alt="portfolio_view" src="examples/WGAN_MNIST_Objective.png"> |
+
+Likewise, here we can see how the models evolve when training on the CIFAR-10 dataset. The generators turn out can be quite unstable for this data, fine tuning is therefore needed in order to get decent results.
+| GAN | WGAN |
+|:-------------------------:|:-------------------------:|
+| <img width="250" alt="portfolio_view" src="examples/GAN_CIFAR10.gif"> | <img width="250" alt="portfolio_view" src="examples/WGAN_CIFAR10.gif"> |
+| ![GAN_CIFAR10](examples/GAN_CIFAR_Example.png) | ![WGAN_CIFAR10](examples/WGAN_CIFAR_Example.png) |
 
 ## Acknowledgment
+The following tutorials/repos have provided immense help for this implementation:
 - [Deep Convolutional Generative Adversarial Network](https://www.tensorflow.org/tutorials/generative/dcgan).
 
 - Denis Lukovnikov's [WGAN-GP reproduction](https://github.com/lukovnikov/improved_wgan_training).
