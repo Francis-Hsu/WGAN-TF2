@@ -55,6 +55,6 @@ The following tutorials/repos have provided immense help for this implementation
 
 - Naveen Kodali et al. *On Convergence and Stability of GANs*. 2017. arXiv: [1705.07215 [cs.AI]](https://arxiv.org/abs/1705.07215).
 
-- Henning Petzka, Asja Fischer, and Denis Lukovnicov. On the regularization of Wasserstein GANs. 2017. arXiv: [1709.08894 [stat.ML]](https://arxiv.org/abs/1709.08894).
+- Henning Petzka, Asja Fischer, and Denis Lukovnicov. *On the regularization of Wasserstein GANs*. 2017. arXiv: [1709.08894 [stat.ML]](https://arxiv.org/abs/1709.08894).
 
 - Tim Salimans et al. Improved Techniques for Training GANs. 2016. arXiv: [1606.03498 [cs.LG]](https://arxiv.org/abs/1606.03498).
