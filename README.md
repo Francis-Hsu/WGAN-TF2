@@ -3,7 +3,7 @@
 Yet another simple implementation of GAN and Wasserstein GAN using TensorFlow 2.
 
 ## Remarks
-Following advice from the original GAN \[[Goo+14](http://papers.nips.cc/paper/5423-generative-adversarial-nets.pdf)\], we trained *G* to maximize ln[*D*(*G*(***z***))] to avoid vanishing gradient.
+Following advice from the original GAN \[[Goo+14](http://papers.nips.cc/paper/5423-generative-adversarial-nets.pdf)\], we trained *G* by maximizing ln[*D*(*G*(***z***))] to avoid vanishing gradient.
 
 We implemented the WGAN-LP variant \[[PFL17](https://arxiv.org/abs/1709.08894)\] in place of the ordinary WGAN (\[[ACB17](https://arxiv.org/abs/1701.07875))\]. The gradient penalty is computed by perturbing the concatenation of real and fake data with Gaussian noises.
 
