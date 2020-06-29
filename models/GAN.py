@@ -45,16 +45,16 @@ class GAN:
             tf.data.Dataset.from_tensor_slices(self.x_train).shuffle(self.data_shape[0]).batch(self.batch_size)
 
         # setup optimizers
-        self.G_optimizer = tf.keras.optimizers.Adam(learning_rate=param.get("learning_rate", 5e-5)[0],
-                                                    beta_1=param.get("beta_1", 0.5)[0],
-                                                    beta_2=param.get("beta_2", 0.999)[0],
-                                                    epsilon=param.get("epsilon", 1e-7)[0],
-                                                    amsgrad=param.get("amsgrad", False)[0])
-        self.D_optimizer = tf.keras.optimizers.Adam(learning_rate=param.get("learning_rate", 1e-4)[1],
-                                                    beta_1=param.get("beta_1", 0.5)[1],
-                                                    beta_2=param.get("beta_2", 0.999)[1],
-                                                    epsilon=param.get("epsilon", 1e-7)[1],
-                                                    amsgrad=param.get("amsgrad", False)[1])
+        self.D_optimizer = tf.keras.optimizers.Adam(learning_rate=param.get("learning_rate_d", 1e-4),
+                                                    beta_1=param.get("beta_1_d", 0.5),
+                                                    beta_2=param.get("beta_2_d", 0.999),
+                                                    epsilon=param.get("epsilon_d", 1e-7),
+                                                    amsgrad=param.get("amsgrad_d", False))
+        self.G_optimizer = tf.keras.optimizers.Adam(learning_rate=param.get("learning_rate_g", 5e-5),
+                                                    beta_1=param.get("beta_1_g", 0.2),
+                                                    beta_2=param.get("beta_2_g", 0.999),
+                                                    epsilon=param.get("epsilon_g", 1e-7),
+                                                    amsgrad=param.get("amsgrad_g", False))
 
         # setup models
         self.G = self.set_generator()
