@@ -3,9 +3,9 @@
 Yet another simple implementation of GAN and Wasserstein GAN using TensorFlow 2.
 
 ## Remarks
-Following advice from the original GAN \[[Goo+14](http://papers.nips.cc/paper/5423-generative-adversarial-nets.pdf)\], we trained *G* by maximizing ln[*D*(*G*(***z***))] to avoid vanishing gradient.
+Following advice from the original GAN paper \[[Goo+14](http://papers.nips.cc/paper/5423-generative-adversarial-nets.pdf)\], we trained *G* by maximizing ln[*D*(*G*(***z***))] to avoid vanishing gradient.
 
-We implemented the WGAN-LP variant \[[PFL17](https://arxiv.org/abs/1709.08894)\] in place of the ordinary WGAN (\[[ACB17](https://arxiv.org/abs/1701.07875))\]. The gradient penalty is computed by perturbing the concatenation of real and fake data with Gaussian noises.
+We implemented the WGAN-LP variant \[[PFL17](https://arxiv.org/abs/1709.08894)\] in place of the ordinary WGAN \[[ACB17](https://arxiv.org/abs/1701.07875)\]. The gradient penalty is computed by perturbing the concatenation of real and fake data with Gaussian noises.
 
 ## Usage
 - To train GAN on MNIST: 
@@ -57,4 +57,4 @@ The following tutorials/repos have provided immense help for this implementation
 
 - Henning Petzka, Asja Fischer, and Denis Lukovnicov. *On the regularization of Wasserstein GANs*. 2017. arXiv: [1709.08894 [stat.ML]](https://arxiv.org/abs/1709.08894).
 
-- Tim Salimans et al. Improved Techniques for Training GANs. 2016. arXiv: [1606.03498 [cs.LG]](https://arxiv.org/abs/1606.03498).
+- Tim Salimans et al. *Improved Techniques for Training GANs*. 2016. arXiv: [1606.03498 [cs.LG]](https://arxiv.org/abs/1606.03498).
